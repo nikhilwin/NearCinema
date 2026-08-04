@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-red: #e11d48; /* rose-600 */
+  --color-brand-red-hover: #be123c; /* rose-700 */
+  --color-brand-dark: #090d16; /* deeper than slate-950 */
+  --color-brand-glass: rgba(13, 19, 33, 0.75);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-dark);
+    color: #f8fafc; /* slate-50 */
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e11d48;
+}
+
+/* Glassmorphism styling classes */
+.glass-panel {
+  background: rgba(20, 27, 45, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(225, 29, 72, 0.3);
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.1);
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.text-gradient {
+  background: linear-gradient(to right, #f43f5e, #fb7185, #fca5a5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(225, 29, 72, 0.5);
+}
+
+/* Custom Seat Grid Shapes and Gradients */
+.seat {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.seat-available {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+.seat-available:hover {
+  background: rgba(225, 29, 72, 0.2);
+  border-color: #e11d48;
+  transform: scale(1.15);
+}
+
+.seat-selected {
+  background: #e11d48;
+  border: 1px solid #e11d48;
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.6);
+}
+
+.seat-booked {
+  background: #1e293b;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.screen-glow {
+  background: linear-gradient(to bottom, rgba(225, 29, 72, 0.15) 0%, rgba(9, 13, 22, 0) 100%);
+  border-top: 3px solid rgba(225, 29, 72, 0.6);
+  box-shadow: 0 -10px 40px -10px rgba(225, 29, 72, 0.3);
+}
