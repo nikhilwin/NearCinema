@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { MapPin, Film, Star, Clock, Navigation, Search } from 'lucide-react';
+import { MapPin, Film, Star, Clock, Navigation, Compass, Sparkles, Brain } from 'lucide-react';
 
 const Home = ({ selectedCity, userLocation, searchQuery }) => {
   const [movies, setMovies] = useState([]);
   const [cinemas, setCinemas] = useState([]);
+  const [userBookings, setUserBookings] = useState([]);
   const [loadingMovies, setLoadingMovies] = useState(true);
   const [loadingCinemas, setLoadingCinemas] = useState(true);
   const [cinemaError, setCinemaError] = useState('');
+
+  // AI Recommendation states
+  const [selectedAiGenres, setSelectedAiGenres] = useState([]);
+  const genresList = ["Action", "Sci-Fi", "Animation", "Drama", "Comedy", "Thriller"];
 
   // Fetch movies
   useEffect(() => {
@@ -26,7 +31,7 @@ const Home = ({ selectedCity, userLocation, searchQuery }) => {
     fetchMovies();
   }, [searchQuery]);
 
-  // Fetch cinemas based on selected city or user geolocation
+  // Fetch cinemas
   useEffect(() => {
     const fetchCinemas = async () => {
       setLoadingCinemas(true);
@@ -36,11 +41,10 @@ const Home = ({ selectedCity, userLocation, searchQuery }) => {
         if (userLocation) {
           params.latitude = userLocation.latitude;
           params.longitude = userLocation.longitude;
-          params.radius = 30; // 30km radius
+          params.radius = 30;
         } else if (selectedCity) {
           params.city = selectedCity;
         } else {
-          // If no city and no coordinates, default to Varanasi to make the homepage look rich
           params.city = "Varanasi";
         }
 
@@ -55,6 +59,76 @@ const Home = ({ selectedCity, userLocation, searchQuery }) => {
     };
     fetchCinemas();
   }, [selectedCity, userLocation]);
+
+  // Fetch user bookings for AI profiling
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.getUserBookings()
+        .then(data => setUserBookings(data))
+        .catch(err => console.error("Error loading user bookings for AI profiling:", err));
+    }
+  }, []);
+
+  const handleGenreToggle = (genre) => {
+    if (selectedAiGenres.includes(genre)) {
+      setSelectedAiGenres(selectedAiGenres.filter(g => g !== genre));
+    } else {
+      setSelectedAiGenres([...selectedAiGenres, genre]);
+    }
+  };
+
+  // AI logic to process recommendations
+  const getAiRecommendations = () => {
+    if (movies.length === 0) return { type: 'none', list: [] };
+
+    // 1. History-based profiling (if user has bookings)
+    if (userBookings.length > 0) {
+      const genreCounts = {};
+      userBookings.forEach(booking => {
+        if (booking.movie && booking.movie.genre) {
+          const parts = booking.movie.genre.split(',').map(g => g.trim());
+          parts.forEach(g => {
+            genreCounts[g] = (genreCounts[g] || 0) + 1;
+          });
+        }
+      });
+
+      let topGenre = '';
+      let maxCount = 0;
+      for (const genre in genreCounts) {
+        if (genreCounts[genre] > maxCount) {
+          maxCount = genreCounts[genre];
+          topGenre = genre;
+        }
+      }
+
+      if (topGenre) {
+        // Recommend movies matching top booked genre (excluding already booked movies)
+        const bookedMovieIds = userBookings.map(b => b.movie?._id);
+        const filtered = movies.filter(m => 
+          m.genre.toLowerCase().includes(topGenre.toLowerCase()) && 
+          !bookedMovieIds.includes(m._id)
+        );
+
+        if (filtered.length > 0) {
+          return { type: 'history', value: topGenre, list: filtered.slice(0, 5) };
+        }
+      }
+    }
+
+    // 2. Preference-based (manual selector)
+    if (selectedAiGenres.length > 0) {
+      const filtered = movies.filter(m => 
+        selectedAiGenres.some(g => m.genre.toLowerCase().includes(g.toLowerCase()))
+      );
+      return { type: 'preference', value: selectedAiGenres.join(', '), list: filtered.slice(0, 5) };
+    }
+
+    return { type: 'none', list: [] };
+  };
+
+  const aiResult = getAiRecommendations();
 
   return (
     <div className="container mx-auto px-6 py-8 space-y-12">
@@ -95,7 +169,101 @@ const Home = ({ selectedCity, userLocation, searchQuery }) => {
         </div>
       </div>
 
-      {/* Movies Carousel/Grid Section */}
+      {/* AI Recommendation Panel */}
+      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 relative overflow-hidden space-y-6">
+        <div className="absolute -top-20 -right-20 w-60 h-60 bg-rose-500/5 rounded-full blur-3xl"></div>
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-gradient-to-tr from-rose-500 to-indigo-500 p-2 rounded-xl text-white shadow-lg shadow-rose-500/10">
+              <Brain className="h-5.5 w-5.5" />
+            </div>
+            <div>
+              <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-1.5">
+                AI Movie Engine <span className="text-xs font-bold text-slate-400 bg-slate-900 border border-white/5 px-2 py-0.5 rounded">v1.2</span>
+              </h2>
+              <p className="text-slate-400 text-xs mt-0.5">Smart personalized recommendations powered by your taste and booking history.</p>
+            </div>
+          </div>
+
+          {/* Profile mode tag */}
+          {aiResult.type === 'history' && (
+            <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="h-3 w-3 animate-spin" /> Profile Analysis Active
+            </span>
+          )}
+        </div>
+
+        {/* Guest genre picker */}
+        {userBookings.length === 0 && (
+          <div className="space-y-3">
+            <span className="text-slate-400 text-xs font-extrabold uppercase tracking-wide block">Select your favorite genres:</span>
+            <div className="flex flex-wrap gap-2">
+              {genresList.map(genre => {
+                const isSelected = selectedAiGenres.includes(genre);
+                return (
+                  <button
+                    key={genre}
+                    onClick={() => handleGenreToggle(genre)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-brand-red text-white shadow-md shadow-brand-red/20 border border-brand-red'
+                        : 'bg-slate-900 border border-white/5 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {genre}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* AI Results */}
+        {aiResult.type !== 'none' ? (
+          <div className="space-y-4">
+            <div className="text-xs font-semibold text-slate-400">
+              {aiResult.type === 'history' ? (
+                <span>Because you frequently book <strong className="text-brand-red">{aiResult.value}</strong> films, the AI recommends:</span>
+              ) : (
+                <span>Showing recommended movies for your selected genres (<strong className="text-brand-red">{aiResult.value}</strong>):</span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {aiResult.list.map(movie => (
+                <Link 
+                  to={`/movie/${movie._id}`} 
+                  key={movie._id}
+                  className="group relative flex flex-col bg-slate-950/40 rounded-xl overflow-hidden border border-white/5 hover:border-brand-red/20 transition-all duration-300"
+                >
+                  <div className="relative aspect-[2/3] overflow-hidden">
+                    <img src={movie.poster} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    <div className="absolute top-1.5 right-1.5 bg-black/70 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                      <span className="text-[10px] font-bold text-white">{movie.rating}</span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <h4 className="font-extrabold text-white text-xs line-clamp-1 group-hover:text-brand-red transition">{movie.title}</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">{movie.genre.split(',')[0]}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-900/30 border border-white/5 p-6 rounded-2xl text-center text-xs text-slate-500 leading-relaxed">
+            {userBookings.length > 0 ? (
+              "Loading profile recommendation engine..."
+            ) : (
+              "Select one or more favorite genres above to generate personalized AI recommendations instantly!"
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Movies Grid Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

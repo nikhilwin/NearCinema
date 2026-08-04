@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { Star, Clock, Globe, Film, Calendar, MapPin } from 'lucide-react';
+import { Star, Clock, Globe, Film, Calendar, MapPin, Sparkles } from 'lucide-react';
 
 const MovieDetails = () => {
   const { id } = useParams();
   const [movie, setMovie] = useState(null);
+  const [allMovies, setAllMovies] = useState([]);
   const [shows, setShows] = useState([]);
   const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
@@ -42,6 +43,13 @@ const MovieDetails = () => {
     };
     fetchMovie();
   }, [id]);
+
+  // Fetch all movies for similar recommendations
+  useEffect(() => {
+    api.getMovies()
+      .then(data => setAllMovies(data))
+      .catch(err => console.error("Error loading similar movies:", err));
+  }, []);
 
   // Fetch shows when date or movie changes
   useEffect(() => {
@@ -84,8 +92,23 @@ const MovieDetails = () => {
     return acc;
   }, {});
 
+  // Calculate similar movies
+  const getSimilarMovies = () => {
+    if (!movie || allMovies.length === 0) return [];
+    const currentGenres = movie.genre.split(',').map(g => g.trim().toLowerCase());
+    return allMovies
+      .filter(m => m._id !== movie._id)
+      .filter(m => {
+        const genres = m.genre.split(',').map(g => g.trim().toLowerCase());
+        return genres.some(g => currentGenres.includes(g));
+      })
+      .slice(0, 4); // Show top 4 similar recommendations
+  };
+
+  const similarMovies = getSimilarMovies();
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       {/* Backdrop Hero section */}
       <div className="relative h-[300px] md:h-[450px] w-full overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/60 to-transparent z-10"></div>
@@ -129,9 +152,9 @@ const MovieDetails = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
-        {/* Synopsis */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Synopsis & Showtimes */}
+        <div className="lg:col-span-2 space-y-8">
           <div className="glass-panel p-6 rounded-2xl">
             <h2 className="text-xl font-bold text-white mb-3">Synopsis</h2>
             <p className="text-slate-400 text-sm leading-relaxed">{movie.description}</p>
@@ -210,11 +233,39 @@ const MovieDetails = () => {
           </div>
         </div>
 
-        {/* Sidebar Movie Poster (mobile) */}
-        <div className="md:hidden space-y-6">
-          <div className="rounded-2xl overflow-hidden aspect-[2/3]">
+        {/* Sidebar Poster & Similar Movies */}
+        <div className="space-y-6">
+          {/* Poster (visible on desktop) */}
+          <div className="hidden lg:block rounded-2xl overflow-hidden aspect-[2/3] border border-white/5">
             <img src={movie.poster} alt={movie.title} className="w-full h-full object-cover" />
           </div>
+
+          {/* More Like This (Similar Movies recommendation) */}
+          {similarMovies.length > 0 && (
+            <div className="glass-panel p-6 rounded-2xl border border-white/5 space-y-4">
+              <div className="flex items-center gap-1.5 text-white font-extrabold text-sm border-b border-white/5 pb-2">
+                <Sparkles className="h-4 w-4 text-brand-red" />
+                <span>More Like This</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {similarMovies.map(sim => (
+                  <Link 
+                    key={sim._id} 
+                    to={`/movie/${sim._id}`}
+                    className="group flex flex-col bg-slate-950/40 rounded-xl overflow-hidden border border-white/5 hover:border-brand-red/20 transition"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden">
+                      <img src={sim.poster} alt={sim.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    </div>
+                    <div className="p-2">
+                      <span className="text-[10px] font-black text-white line-clamp-1 group-hover:text-brand-red transition">{sim.title}</span>
+                      <span className="text-[9px] text-slate-500 block mt-0.5">{sim.genre.split(',')[0]}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
